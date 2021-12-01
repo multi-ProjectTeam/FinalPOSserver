@@ -30,12 +30,18 @@ app.post('/enterprises/:eno/tables/:tno', (req, res) => {
     res.send({ "status": "success" });
 });
 
+app.options('/enterprises/:eno/tables/:tno', (req, res) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With');
+    console.log("OPTIONS route:", req.headers)
+    res.sendStatus(200);
+})
+
 // 등록되지 않은 패스에 대해 페이지 오류 응답
 app.all('*', function (req, res) {
     res.status(404).send('<h1>ERROR - 페이지를 찾을 수 없습니다.</h1>');
 })
-
-
 
 
 // 서버 설정
@@ -44,7 +50,7 @@ const io = new Server(httpServer, {
     cors: {
         // origin: 'http://localhost:3000',
         origin: '*',
-        methods: ['GET', 'POST'],
+        methods: ['POST', 'OPTIONS'],
     },
 });
 const PORT = process.env.PORT || 5000;
@@ -75,7 +81,7 @@ io.on('connection', socket => {
         order.body.orderdetails.map((value) => {
             value.tno = order.tno;
         })
-        console.log(order.body.orderdetails);
+        // console.log(order.body.orderdetails);
         if (connection)
             io.to(connection.socketId).emit('orderToPos', { message: order.body.orderdetails });
         else
