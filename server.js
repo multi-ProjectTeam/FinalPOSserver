@@ -20,17 +20,34 @@ const clientIO = require('socket.io-client');
 const clientSocket = clientIO('http://localhost:5000');
 
 
-// POST
+// POST order
 app.post('/enterprises/:eno/tables/:tno', (req, res) => {
     // console.log(req.body);
     clientSocket.emit('orderFromTable', {
         body: req.body,
-        eno: Number(req.params.eno), tno: Number(req.params.tno)
+        eno: Number(req.params.eno), seat_num: Number(req.params.tno)
+    });
+    res.send({ "status": "success" });
+});
+
+// POST pay
+app.post('/enterprises/:eno/tables/:tno/pay', (req, res) => {
+    clientSocket.emit('payFromTable', {
+        body: req.body,
+        eno: Number(req.params.eno), seat_num: Number(req.params.tno)
     });
     res.send({ "status": "success" });
 });
 
 app.options('/enterprises/:eno/tables/:tno', (req, res) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With');
+    console.log("OPTIONS route:", req.headers)
+    res.sendStatus(200);
+})
+
+app.options('/enterprises/:eno/tables/:tno/pay', (req, res) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With');
@@ -56,7 +73,7 @@ const io = new Server(httpServer, {
 const PORT = process.env.PORT || 5000;
 
 
-// 오청을 받았을 때
+//오청을 받았을 때
 io.on('connection', socket => {
     console.log(`${socket.id} 접속`)
 
@@ -75,17 +92,27 @@ io.on('connection', socket => {
         // console.log("< order >");
         // console.log("+ order : ", order);
         const connection = getConnectionByEno(order.eno);
-
+        
         // console.log("+ order : ", order.body);
         // console.log("+ connection : ", connection)
         order.body.orderdetails.map((value) => {
-            value.tno = order.tno;
+            value.seat_num = order.seat_num;
         })
-        // console.log(order.body.orderdetails);
+        // // console.log(order.body.orderdetails);
         if (connection)
             io.to(connection.socketId).emit('orderToPos', { message: order.body.orderdetails });
         else
             console.log("아직 개시되지 않은 POS로 요청을 보냈습니다.")
+    })
+
+    // pay to Pos
+    socket.on('payFromTable', pay => {
+        const connection = getConnectionByEno(pay.eno);
+        console.log(112);
+        if (connection)
+            io.to(connection.socketId).emit('payToPos', { message: pay.body });
+        else
+            console.log("아직 개시되지 않은 POS로 요청을 보냈습니다.");
     })
 
     // 접속을 종료할 때
